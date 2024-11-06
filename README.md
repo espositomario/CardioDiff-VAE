@@ -1,5 +1,5 @@
 
-# Cardiac Differentiation Analysis Pipeline
+# Variational Autoencoders to Integrate Gene expression and Histone marks Dynamics across Cardiac differentiation 
 
 This repository contains a computational pipeline designed for the analysis of RNA-seq and ChIP-seq data through various stages of cardiac differentiation in mice. The pipeline leverages multiple tools for data processing, normalization, dimensionality reduction, and clustering to explore gene regulatory dynamics throughout differentiation.
 
