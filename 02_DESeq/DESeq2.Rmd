@@ -1,0 +1,141 @@
+---
+title: "# Differntial expression analysis"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_float: yes
+    toc_collapsed: no
+    toc_depth: 2
+    number_sections: no
+    fig_retina: 4
+    downcute_theme: chaos
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+# Differntial expression analysis
+
+## 1. Loading BAM files
+
+```{r}
+CT_LIST <- c("ESC", "MES", "CP", "CM")
+R_VALUES <- c(1, 2)
+files <- c()
+# Iterate over CT and R values
+for (CT in CT_LIST) {
+  for (R in R_VALUES) {
+    path <- paste("RNA_", CT, "_", R, "_Wamstad_2013_PE.link", sep ="")
+    files <- c(files, path) }}
+files
+```
+
+```{r}
+file.exists(files)
+library("Rsamtools")
+bamfiles <- BamFileList(files,yieldSize=100000)
+seqinfo(bamfiles)
+bamfiles
+```
+
+## 2. Loading GTF files
+
+```{r}
+library("GenomicFeatures")
+#genome <- Sys.getenv("MOUSE10",names = T)               ###### I add it manually, it didn't succeed in getting $MOUSE10
+genome = "INSERT GENOME PATH"                
+gtffile <- file.path(indir=genome,"refGene.gtf")
+gtffile
+file.exists(gtffile)
+txdb <- makeTxDbFromGFF(gtffile, format = "gtf", circ_seqs = character(), organism="Mus musculus")
+txdb
+ebg <- exonsBy(txdb, by="gene")
+ebg
+```
+
+## 3. Parallelization configuration
+
+```{r}
+library(BiocParallel)
+bpparam()
+register(MulticoreParam(workers=5))          # set num of cores
+bpparam()
+```
+
+## 4. Count the reads on the genome regions
+
+```{r}
+# Initialize lists a, b, and c
+a <- c()
+b <- c()
+c <- c()
+# Iterate over CT and R values
+for (CT in CT_LIST) {
+  for (R in R_VALUES) {
+    prefix <- switch(CT, "ESC" = "a", "MES" = "b", "CP" = "c", "CM" = "d")
+    a <- c(a, paste(CT, "_", R, sep = ""))
+    b <- c(b, paste(CT, sep = ""))
+    c <- c(c, R)}}
+df <- data.frame(a,b,c)                              #  add a prefix (A_, B_) to control condition sorting 
+names(df) <- c("sample","condition","replicate")
+df$sample    = factor(df$sample,    levels = unique(df$sample))
+df$condition = factor(df$condition, levels = unique(df$condition))
+df$replicate = factor(df$replicate, levels = unique(df$replicate))
+```
+
+```{r}
+# 4. Count the reads on the genome regions
+library("GenomicAlignments")
+se <- summarizeOverlaps(features=ebg,
+                        reads=bamfiles,
+                        mode="Union",
+                        singleEnd=FALSE,
+                        ignore.strand=FALSE,
+                        preprocess.reads=invertStrand,
+                        fragments=TRUE)
+# saveRDS(se, file = "my_data.rds")
+
+```
+
+## x. Load backup data (Optional)
+
+```{r}
+# Restore the object
+backup <- readRDS("my_data.rds")
+se = backup
+se
+dim(se)
+colData(se)
+head(assay(se), 3)
+```
+
+```{r}
+colData(se)= DataFrame(df)
+colnames(se)=df$sample
+colData(se)
+head(assay(se), 3)
+
+```
+
+```{r}
+library("DESeq2")
+combinations <- combn(CT_LIST, 2)
+for (i in 1:ncol(combinations)) {
+  pair = combinations[, i]
+  sub = subset(se, select = colData(se)$condition %in% pair)
+  print(colnames(sub))
+  dds = DESeqDataSet(sub, design = ~ replicate+condition)
+  dds = DESeq(dds)
+  res = results(dds)
+  cols = colnames(sub)
+  summary(res)
+  #
+  FILENAME = paste0(pair[1],'_',pair[2],'.txt')
+  write.table(res, file = paste0("Results/stats/",FILENAME),sep = "\t",quote=F)
+  write.table(fpkm(dds,robust=TRUE), file = paste0("Results/fpkm/",FILENAME),sep = "\t",quote=F,col.names=cols)
+  write.table(counts(dds), file = paste0("Results/counts/",FILENAME),sep = "\t",quote=F,col.names=cols)
+}
+```

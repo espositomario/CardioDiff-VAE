@@ -1,0 +1,42 @@
+name: DL
+channels:
+  - apple
+  #- pytorch-nightly
+dependencies:
+# Pythorch
+  #- pytorch
+  #- torchvision
+  #- torchaudio
+# Base
+  - python
+  - pip
+  - jupyter
+  - ipykernel
+  - pandas
+  - numpy
+  - scipy
+  - scikit-learn
+# Plots
+  - seaborn
+  - matplotlib
+  # Plotly in jupyter
+  - notebook>=5.3 
+  - ipywidgets>=7.5
+  # 
+  - shap
+  - umap-learn
+  - graphviz
+  - pydot
+  - plotly>=5
+# Tensorflow
+  - tensorflow-deps
+  - pip:
+    - tensorflow-macos==2.9
+    - tensorflow-metal==0.5.0
+    - keras-tuner
+    - keras-utils
+    - palettable
+    - openpyxl
+    - matplotlib-venn
+    - squarify
+
